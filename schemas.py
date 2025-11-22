@@ -1,48 +1,61 @@
 """
-Database Schemas
+Database Schemas for AI Persona Builder
 
-Define your MongoDB collection schemas here using Pydantic models.
-These schemas are used for data validation in your application.
+Each Pydantic model represents a MongoDB collection. The collection name is the
+lowercase of the class name (e.g., Persona -> "persona").
 
-Each Pydantic model represents a collection in your database.
-Model name is converted to lowercase for the collection name:
-- User -> "user" collection
-- Product -> "product" collection
-- BlogPost -> "blogs" collection
+These models are used by the database viewer and for validation in the app.
 """
 
 from pydantic import BaseModel, Field
-from typing import Optional
+from typing import List, Optional, Literal
 
-# Example schemas (replace with your own):
 
-class User(BaseModel):
-    """
-    Users collection schema
-    Collection name: "user" (lowercase of class name)
-    """
-    name: str = Field(..., description="Full name")
-    email: str = Field(..., description="Email address")
-    address: str = Field(..., description="Address")
-    age: Optional[int] = Field(None, ge=0, le=120, description="Age in years")
-    is_active: bool = Field(True, description="Whether user is active")
+class Professional(BaseModel):
+    """Professionals who build and sell their AI personas"""
+    name: str = Field(..., description="Full name of the professional")
+    email: str = Field(..., description="Unique email address")
+    bio: Optional[str] = Field(None, description="Short bio")
+    avatar_url: Optional[str] = Field(None, description="Profile image URL")
+    website: Optional[str] = Field(None, description="Personal or business site")
+    specialties: List[str] = Field(default_factory=list, description="Domains of expertise")
+    is_active: bool = Field(True, description="Whether this account is active")
 
-class Product(BaseModel):
-    """
-    Products collection schema
-    Collection name: "product" (lowercase of class name)
-    """
-    title: str = Field(..., description="Product title")
-    description: Optional[str] = Field(None, description="Product description")
-    price: float = Field(..., ge=0, description="Price in dollars")
-    category: str = Field(..., description="Product category")
-    in_stock: bool = Field(True, description="Whether product is in stock")
 
-# Add your own schemas here:
-# --------------------------------------------------
+class Source(BaseModel):
+    """Knowledge sources uploaded or linked to a persona"""
+    persona_id: str = Field(..., description="Related persona id")
+    type: Literal["text", "link", "file", "video", "image", "slides", "website"]
+    title: Optional[str] = Field(None, description="Display title for the source")
+    url: Optional[str] = Field(None, description="URL for link/video/website sources")
+    content: Optional[str] = Field(None, description="Raw text content for text sources")
+    file_name: Optional[str] = Field(None, description="Original file name if uploaded")
+    file_size: Optional[int] = Field(None, description="File size in bytes if uploaded")
+    metadata: dict = Field(default_factory=dict, description="Arbitrary metadata like tags, notes")
 
-# Note: The Flames database viewer will automatically:
-# 1. Read these schemas from GET /schema endpoint
-# 2. Use them for document validation when creating/editing
-# 3. Handle all database operations (CRUD) directly
-# 4. You don't need to create any database endpoints!
+
+class Persona(BaseModel):
+    """An AI coach persona owned by a professional"""
+    owner_email: str = Field(..., description="Owner email (references Professional.email)")
+    title: str = Field(..., description="Public name of the persona")
+    description: Optional[str] = Field(None, description="What this AI coach does")
+    tone: Optional[str] = Field("helpful, concise, expert", description="Speaking style to emulate")
+    specialties: List[str] = Field(default_factory=list, description="Topics this persona covers")
+    status: Literal["draft", "training", "trained", "error"] = Field("draft", description="Training state")
+    price_usd: Optional[float] = Field(None, ge=0, description="Optional price to access this persona")
+    visibility: Literal["private", "unlisted", "public"] = Field("private")
+
+
+class TrainingJob(BaseModel):
+    """Represents a training request for a persona"""
+    persona_id: str = Field(..., description="Target persona id")
+    status: Literal["queued", "running", "completed", "failed"] = Field("queued")
+    notes: Optional[str] = Field(None, description="Optional status notes")
+
+
+class Conversation(BaseModel):
+    """Simple conversation log with a persona"""
+    persona_id: str = Field(...)
+    user_message: str = Field(...)
+    response: str = Field(...)
+
